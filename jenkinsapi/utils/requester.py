@@ -22,7 +22,7 @@ from jenkinsapi.custom_exceptions import JenkinsAPIException, PostRequired
 # requests_log = logging.getLogger("requests.packages.urllib3")
 # requests_log.setLevel(logging.DEBUG)
 # requests_log.propagate = True
-
+requests = requests.session()
 requests.adapters.DEFAULT_RETRIES = 5
 
 
@@ -77,7 +77,7 @@ class Requester(object):
         self.ssl_verify = kwargs.get('ssl_verify', ssl_verify)
         self.cert = kwargs.get('cert', cert)
         self.timeout = kwargs.get('timeout', timeout)
-        self.session = requests.Session()
+        self.session = requests
 
     def get_request_dict(
             self, params=None, data=None, files=None, headers=None, **kwargs):
