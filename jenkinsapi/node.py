@@ -15,7 +15,6 @@ log = logging.getLogger(__name__)
 
 
 class Node(JenkinsBase):
-
     """
     Class to hold information on nodes that are attached as slaves
     to the master jenkins instance
@@ -124,6 +123,37 @@ class Node(JenkinsBase):
 
             retries = na['max_num_retries'] if 'max_num_retries' in na else ''
             re_wait = na['retry_wait_time'] if 'retry_wait_time' in na else ''
+            ssh_host_key_verification_strategy = False
+
+            if na.get('sshHostKeyVerificationStrategy'):
+                ssh_verify_strategy = na.get('sshHostKeyVerificationStrategy')
+
+                if ssh_verify_strategy == "ManuallyTrustedKeyVerificationStrategy":
+                    ssh_host_key_verification_strategy = {
+                        'stapler-class': 'hudson.plugins.sshslaves.verifiers.ManuallyTrustedKeyVerificationStrategy',
+                        '$class': 'hudson.plugins.sshslaves.verifiers.ManuallyTrustedKeyVerificationStrategy',
+                        'requireInitialManualTrust': na.get('requireInitialManualTrust')
+                    }
+                elif ssh_verify_strategy == "ManuallyProvidedKeyVerificationStrategy":
+                    ssh_host_key_verification_strategy = {
+                        'stapler-class': 'hudson.plugins.sshslaves.verifiers.ManuallyProvidedKeyVerificationStrategy',
+                        '$class': 'hudson.plugins.sshslaves.verifiers.ManuallyProvidedKeyVerificationStrategy',
+                        'key': { # todo: verify key/algorithm
+                            "algorithm": na.get('key_algorithm'),
+                            "key": na.get('key'),
+                        }
+                    }
+                elif ssh_verify_strategy == "KnownHostsFileKeyVerificationStrategy":
+                    ssh_host_key_verification_strategy = {
+                        'stapler-class': 'hudson.plugins.sshslaves.verifiers.KnownHostsFileKeyVerificationStrategy',
+                        '$class': 'hudson.plugins.sshslaves.verifiers.KnownHostsFileKeyVerificationStrategy',
+                    }
+                elif ssh_verify_strategy == "NonVerifyingKeyVerificationStrategy":
+                    ssh_host_key_verification_strategy = {
+                        'stapler-class': 'hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy',
+                        '$class': 'hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy',
+                    }
+
             launcher = {
                 'stapler-class': 'hudson.plugins.sshslaves.SSHLauncher',
                 '$class': 'hudson.plugins.sshslaves.SSHLauncher',
@@ -135,7 +165,8 @@ class Node(JenkinsBase):
                 'prefixStartSlaveCmd': na['prefix_start_slave_cmd'],
                 'suffixStartSlaveCmd': na['suffix_start_slave_cmd'],
                 'maxNumRetries': retries,
-                'retryWaitTime': re_wait
+                'retryWaitTime': re_wait,
+                'sshHostKeyVerificationStrategy': ssh_host_key_verification_strategy,
             }
 
         retention = {
@@ -257,7 +288,7 @@ class Node(JenkinsBase):
         """
         initial_state = self.is_temporarily_offline()
         url = self.baseurl + \
-            "/toggleOffline?offlineMessage=" + urlquote(message)
+              "/toggleOffline?offlineMessage=" + urlquote(message)
         try:
             html_result = self.jenkins.requester.get_and_confirm_status(url)
         except PostRequired:
